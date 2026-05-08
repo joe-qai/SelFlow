@@ -1,59 +1,113 @@
-## Python版selenium工具Web自动化测试框架
-#### 设计关键字驱动框架
-##### 反射原理
-- 反射机制
-```
-python:
-反射就是通过字符串的形式，导入模块；通过字符串的形式，去模块寻找指定函数，并执行。
-利用字符串的形式去对象（模块）中操作（查找/获取/删除/添加）成员，一种基于字符串的事件驱动！##
+# Selenium 关键字驱动自动化测试框架
 
-关键方法：
-getattr
-setattr
-hasattr
-delattr
-```
-### POM差异
-```
-POM:以一个个页面的元素及元素操作为对象进行封装,不必穷尽封装所有selenium框架的api,测试用例设计再进行业务调用;
-关键字：二次封装selenium框架的api为关键字,以反射同名字符串的方法实现调用,excel编写测试用例即可;
-异同：在没有测试平台时,建议以po为主,可以协同开发,若是规划测试平台,则建议关键字驱动;至于数据驱动是可以任何模式搭配使用.
-```
+基于 Python + Selenium 的关键字驱动测试框架，通过 Excel 编写测试用例，配合反射机制实现无代码自动化测试。
 
-### 测试报告
-- 结合unittest测试框架
-```
-需要思考:一个sheet为一个测试用例的操作步骤,那么html的测试报告改如何展示?
-假设50个测试用例,那就是50个sheet,如果不用html展示报告,那么就需要在excel标记执行状态;
-如果是excel展示测试报告,那么其中的报错日志错误信息及截图又该如何插入?
-```
-
-### 关键字驱动实战：进阶
-- AutoTest执行一个sheet页的测试用例
-```
-实现:遍历一个sheet页的所有操作步骤关键字调用与类中关键字同名的方法,关键的类:excel操作类
-```
-- AutoTest1遍历多个sheet页的测试用例
-```
-实现:在excel操作类中增加两个方法,一个获取所有sheet\另一个根据sheet_index或者name获取sheet页所有的操作步骤
-```
-- AutoTest2依测试用例执行需要执行的测试用例
-```
-实现:新增excel测试用例中sheet,标记需要执行以及获取可以执行的sheet页名称,然后再以第二个实现方案进行遍历.
-```
-- AutoTes3：selenium关键字驱动应用:建议在平台开发中使用.
-```
-平台开发技术栈:Django+flask+jinja2+mysql,python实现
-设想:将excel的关键信息:关键字\元素\内容,提取在web中组装测试用例
-
-已知使用excel作为web自动化测试用例设计,并且关键字已实现,那么是否可以简单GUI上传excel文件,然后执行脚本即可呢?
+## 目录结构
 
 ```
-- run_main:实现关键字驱动执行测试用例生成html报告
+selenium-keywords/
+├── Common/               # 核心框架
+│   ├── KeyWords.py       # Selenium 关键字方法封装
+│   ├── ref_invoke.py     # 反射调用引擎
+│   ├── HandleTestCase.py # Excel 测试用例读取与执行
+│   └── conf_dirs.py      # 目录路径配置
+├── Utils/                # 工具模块
+│   ├── HandleExcel.py    # Excel 读写封装
+│   └── find_element_by_locator.py  # 元素定位器
+├── Libs/                  # 第三方报告库
+├── TestCases/            # unittest 测试用例 (ddt 数据驱动)
+├── TestCases_py/         # pytest 测试用例
+├── TestDatas/            # Excel 测试用例文件
+├── HTMLReports/          # HTML 测试报告输出
+├── Screenshots/          # 失败截图
+├── Logs/                 # 日志
+└── run_main.py           # unittest 入口
 ```
-将excel类操作文件方法与获取所有测试用例数据结合，然后通过ddt完成数据驱动
+
+## 快速开始
+
+### 1. 安装依赖
+
+```bash
+pip install -r requirements.txt
 ```
-### tkinter桌面化,即GUI
+
+依赖：`selenium==3.141.0`、`xlrd==2.0.1`、`xlutils==2.0.0`、`xlwt==1.3.0`、`ddt==1.4.2`、`pytest==6.2.3`
+
+### 2. 准备测试用例 Excel
+
+在 `TestDatas/` 目录下放置 `关键字驱动测试用例.xlsx`，包含两个关键 Sheet：
+
+- **测试用例** — 列出所有待执行的测试场景（Sheet 名）
+- **[Sheet 名]** — 该 Sheet 下的步骤行，列定义如下：
+
+| 步骤名称 | 关键字 | 定位方式 | 内容 |
+|---------|--------|---------|------|
+| 打开浏览器 | `open_browser` | | chrome |
+| 打开网址 | `get_url` | | https://www.baidu.com |
+
+### 3. 编写测试用例
+
+每个步骤行的关键字列填写 `KeyWords.py` 中的方法名，定位方式和内容作为参数传入。
+
+关键字方法：
+
+| 方法名 | 参数 | 说明 |
+|--------|------|------|
+| `open_browser` | browser (chrome/ie/ff) | 启动浏览器 |
+| `get_url` | url | 打开网址 |
+| `click_element` | locator | 点击元素 |
+| `element_send_keys` | locator, content | 输入文本 |
+| `assert_text` | locator, text | 断言页面包含文本 |
+| `switch_frame` | locator | 切换 iframe |
+| `save_screenshots_png` | | 截图 |
+| `sleep_time` | | 强制等待 |
+| `quit_browser` | | 关闭浏览器 |
+
+定位方式格式：`By=value`，例如 `id=kw`、`xpath=//input[@id='kw']`
+
+### 4. 运行测试
+
+**unittest 模式（生成 HTML 报告）：**
+```bash
+python run_main.py
 ```
-实现一个tkinter内置框架可执行程序！
+
+**pytest 模式：**
+```bash
+pytest                                    # 运行 TestCases 目录
+pytest TestCases_py/test_baidu_by_pytest.py  # 运行指定文件
 ```
+
+## 工作原理
+
+```
+Excel 测试用例
+    ↓
+HandleTestCase 读取 sheet 行
+    ↓
+(step_name, key_words, locator, content)
+    ↓
+ref_invoke.run_keywords_method()
+    ↓
+getattr(KeyWordsMethod, key_words)  ← Python 反射
+    ↓
+调用 Selenium 关键字方法
+    ↓
+执行结果回写 Excel
+```
+
+## 执行流程
+
+1. `run_main.py` 启动 unittest，发现 `TestCases/test*.py`
+2. `@ddt` 装饰器从 Excel 读取所有待执行 Sheet 名称
+3. 每条用例调用 `HandleTestCase` 读取对应 Sheet 的步骤行
+4. 每一步通过反射调用 `KeyWords.py` 中的同名方法
+5. 执行结果（pass/failed）和耗时回写到 Excel 中
+6. unittest 使用 `HTMLTestRunnerNew` 输出 HTML 报告到 `HTMLReports/`
+
+## 注意事项
+
+- Excel 读写使用不同库：**读取用 xlrd**（支持 .xlsx），**写入用 xlwt**（只支持 .xls）。如需写入结果，需准备双份文件或转换格式。
+- `selenium==3.141.0` 较旧，浏览器驱动需单独安装并配置到 PATH。
+- pytest.ini 将 `testpaths` 限制为 `./TestCases`，`TestCases_py/` 不受 pytest 自动发现，需手动指定路径运行。
